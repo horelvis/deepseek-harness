@@ -583,14 +583,16 @@ export type ToolExecutionResult = ToolExecutionSuccess | ToolExecutionFailure
  * model-facing reason and optional structured error identity; `cancel` selects
  * the canonical cancellation result without presenting a policy denial; `ask`
  * runs only after an approval service returns `allowed-once` and otherwise
- * denies. Input rewriting is excluded because arguments are already logged and
- * presented.
+ * denies. An `ask` may carry an optional structured prompt (`title`, `details`,
+ * `body`) forwarded to the approval service for richer human presentation;
+ * `reason` remains the single-line fallback. Input rewriting is excluded
+ * because arguments are already logged and presented.
  */
 export type PreToolDecision =
   | { kind: 'allow' }
   | { kind: 'deny'; reason: string; info?: ToolErrorInfo }
   | { kind: 'cancel' }
-  | { kind: 'ask'; reason?: string }
+  | { kind: 'ask'; reason?: string; title?: string; details?: readonly string[]; body?: string }
 
 /**
  * Post-dispatch decision: accept, replace one projection, attach context for the
@@ -1717,6 +1719,9 @@ export class ToolRuntime extends Service {
       toolName: exec.name,
       callId: exec.callId,
       ...ask.reason !== undefined ? { reason: ask.reason } : {},
+      ...ask.title !== undefined ? { title: ask.title } : {},
+      ...ask.details !== undefined ? { details: ask.details } : {},
+      ...ask.body !== undefined ? { body: ask.body } : {},
       signal: exec.signal,
     })
     switch (outcome) {
