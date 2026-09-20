@@ -272,6 +272,10 @@
     - id: ui-approval
       name: '@deepseek-ai/dsh-client-ui-approval'
 
+    # Spanish language pack (custom harness): adds `es` with an English fallback.
+    - id: locale-es
+      name: '@deepseek-ai/dsh-client-locale-es'
+
     - id: ui-chat
       name: '@deepseek-ai/dsh-client-ui-chat'
 
