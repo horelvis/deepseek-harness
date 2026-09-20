@@ -115,8 +115,14 @@ export interface ApprovalRequest extends ApprovalRequestEvent {
    * attach the prompt to the tool call it already streamed.
    */
   readonly callId?: ToolCallId
-  /** The asker's human-readable explanation of WHY it is asking. */
+  /** The asker's human-readable explanation of WHY it is asking (fallback headline). */
   readonly reason?: string
+  /** Optional short headline for the decision. */
+  readonly title?: string
+  /** Optional bullet details, rendered as a list. */
+  readonly details?: readonly string[]
+  /** Optional long-form explanation. */
+  readonly body?: string
   /**
    * Aborting withdraws the question: the request settles `'cancelled'`
    * immediately and a late answer from a still-pending answerer is discarded.

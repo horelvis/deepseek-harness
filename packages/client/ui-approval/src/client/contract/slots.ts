@@ -54,8 +54,14 @@ export interface ApprovalPresentationRequest {
   readonly toolName: string
   /** Tool call correlated with the request. */
   readonly callId?: ToolCallId
-  /** Human-readable reason supplied by the requester. */
+  /** Human-readable reason supplied by the requester (fallback headline). */
   readonly reason?: string
+  /** Optional short headline for the decision. */
+  readonly title?: string
+  /** Optional bullet details rendered as a list. */
+  readonly details?: readonly string[]
+  /** Optional long-form explanation. */
+  readonly body?: string
   /** Cancellation projected from the Host waterfall. */
   readonly signal?: AbortSignal
 }
@@ -77,6 +83,12 @@ export class PendingApproval {
   readonly callId: ToolCallId | undefined
   /** Human-readable reason supplied by the asker. */
   readonly reason: string | undefined
+  /** Optional short headline overriding `reason`. */
+  readonly title: string | undefined
+  /** Optional bullet details. */
+  readonly details: readonly string[] | undefined
+  /** Optional long-form explanation. */
+  readonly body: string | undefined
   /** Result returned by the Remote Event listener to the Host waterfall. */
   readonly result: Promise<ApprovalDecision>
 
@@ -98,6 +110,9 @@ export class PendingApproval {
     this.toolName = request.toolName
     this.callId = request.callId
     this.reason = request.reason
+    this.title = request.title
+    this.details = request.details
+    this.body = request.body
     const completion = Promise.withResolvers<ApprovalDecision>()
     this.result = completion.promise
     this.#resolve = completion.resolve

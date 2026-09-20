@@ -53,6 +53,25 @@
   line-height: 24px;
 }
 
+.details {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.detailItem {
+  word-break: break-word;
+}
+
+.bodyText {
+  color: var(--dsw-alias-label-secondary);
+  font-size: 13px;
+  line-height: 20px;
+  white-space: pre-wrap;
+}
+
 .command {
   color: var(--dsw-alias-label-tertiary);
   font-family: var(--ds-font-family-code);

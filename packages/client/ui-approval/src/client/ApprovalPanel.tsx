@@ -38,7 +38,13 @@ function ApprovalFlow({ pending, detail, t }: {
           role="group"
           aria-label={t('detail.aria')}
         >
-          <div className={css.headline}>{pending.reason ?? t('escalation', { toolName: pending.toolName })}</div>
+          <div className={css.headline}>{pending.title ?? pending.reason ?? t('escalation', { toolName: pending.toolName })}</div>
+          {pending.details !== undefined && pending.details.length > 0 && (
+            <ul className={css.details}>
+              {pending.details.map((entry, index) => <li key={index} className={css.detailItem}>{entry}</li>)}
+            </ul>
+          )}
+          {pending.body !== undefined && <div className={css.bodyText}>{pending.body}</div>}
           {detail !== null && <div className={css.command}>{detail}</div>}
         </div>
         <div className={css.actionRow}>

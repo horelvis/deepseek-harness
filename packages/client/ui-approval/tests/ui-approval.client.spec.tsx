@@ -17,6 +17,9 @@ type ApprovalListener = (
     toolName: string
     callId?: string
     reason?: string
+    title?: string
+    details?: readonly string[]
+    body?: string
     signal?: AbortSignal
   },
   next: () => Promise<'unavailable'>,
@@ -136,6 +139,19 @@ describe('PendingApproval', () => {
     expect(() => { pending.abort(new Error('late')) }).not.toThrow()
     expect(() => { pending.delegate() }).not.toThrow()
     await expect(pending.answer('rejected')).rejects.toThrow(/already settled/)
+  })
+
+  it('stores structured reason fields (title, details, body)', () => {
+    const pending = new PendingApproval(id('s1'), {
+      toolName: 'migrator_run_steps',
+      title: 'Run migration steps in the target',
+      details: ['copy-content — rsync store', 'reindex — regenerate index'],
+      body: 'Dry-run: nothing is written.',
+    })
+
+    expect(pending.title).toBe('Run migration steps in the target')
+    expect(pending.details).toEqual(['copy-content — rsync store', 'reindex — regenerate index'])
+    expect(pending.body).toBe('Dry-run: nothing is written.')
   })
 
   it('rejects with an already-aborted signal reason', async () => {
@@ -336,6 +352,23 @@ describe('ApprovalPanel', () => {
     await expect(pending.result).resolves.toBe('rejected')
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Reject' }).disabled).toBe(true)
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Allow once' }).disabled).toBe(true)
+  })
+
+  it('renders a structured title, details list, and body', async () => {
+    const pending = new PendingApproval(id('s1'), {
+      toolName: 'migrator_run_steps',
+      title: 'Run migration steps in the target',
+      details: ['copy-content — rsync store', 'reindex — regenerate index'],
+      body: 'Dry-run: nothing is written.',
+    })
+    render(<ApprovalPanel {...panelProps(pending)} />)
+
+    expect(screen.getByText('Run migration steps in the target')).toBeTruthy()
+    expect(screen.getByText('copy-content — rsync store')).toBeTruthy()
+    expect(screen.getByText('reindex — regenerate index')).toBeTruthy()
+    expect(screen.getByText('Dry-run: nothing is written.')).toBeTruthy()
+    pending.abort(new Error('test cleanup'))
+    await pending.result.catch(() => {})
   })
 
   it('renders correlated detail and returns allow-once', async () => {

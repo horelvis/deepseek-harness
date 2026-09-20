@@ -67,8 +67,14 @@ export interface ApprovalRequestEvent {
   readonly toolName: string
   /** Exact tool call being decided, when available. */
   readonly callId?: ToolCallId
-  /** Human-readable reason supplied by the asker. */
+  /** Human-readable reason supplied by the asker (fallback headline). */
   readonly reason?: string
+  /** Optional short headline for the decision; overrides `reason` as the panel title. */
+  readonly title?: string
+  /** Optional bullet details, rendered as a list (one decision facet per entry). */
+  readonly details?: readonly string[]
+  /** Optional long-form explanation rendered below the details. */
+  readonly body?: string
   /** Cancellation lifetime of the pending request. */
   readonly signal?: AbortSignal
 }

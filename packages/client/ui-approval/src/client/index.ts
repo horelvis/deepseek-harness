@@ -47,6 +47,9 @@ async function answerApproval(
       ? {}
       : { callId: request.callId }),
     ...(request.reason === undefined ? {} : { reason: request.reason }),
+    ...(request.title === undefined ? {} : { title: request.title }),
+    ...(request.details === undefined ? {} : { details: request.details }),
+    ...(request.body === undefined ? {} : { body: request.body }),
     ...(request.signal === undefined ? {} : { signal: request.signal }),
   })
   const completed = Promise.withResolvers<void>()
