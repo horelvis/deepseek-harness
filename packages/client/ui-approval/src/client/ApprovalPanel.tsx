@@ -23,6 +23,8 @@ function ApprovalFlow({ pending, detail, t }: {
   t: ApprovalComposerProps['t']
 }) {
   const [answered, setAnswered] = useState(false)
+  // Doble paso: "Aprobar" solo abre la confirmacion; la aprobacion se envia al "Confirmar".
+  const [confirming, setConfirming] = useState(false)
   const answer = (outcome: 'allowed-once' | 'rejected'): void => {
     setAnswered(true)
     void pending.answer(outcome).catch(() => { setAnswered(false) })
@@ -46,14 +48,28 @@ function ApprovalFlow({ pending, detail, t }: {
           )}
           {pending.body !== undefined && <div className={css.bodyText}>{pending.body}</div>}
           {detail !== null && <div className={css.command}>{detail}</div>}
+          {confirming && <div className={css.bodyText} data-approval-confirm="">{t('confirmPrompt')}</div>}
         </div>
         <div className={css.actionRow}>
-          <Button variant="outline" className={css.reject} disabled={answered} onClick={() => { answer('rejected') }}>
-            {t('reject')}
-          </Button>
-          <Button variant="primary" disabled={answered} onClick={() => { answer('allowed-once') }}>
-            {t('allowOnce')}
-          </Button>
+          {confirming ? (
+            <>
+              <Button variant="outline" disabled={answered} onClick={() => { setConfirming(false) }}>
+                {t('cancel')}
+              </Button>
+              <Button variant="primary" disabled={answered} onClick={() => { answer('allowed-once') }}>
+                {t('confirm')}
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="outline" className={css.reject} disabled={answered} onClick={() => { answer('rejected') }}>
+                {t('reject')}
+              </Button>
+              <Button variant="primary" disabled={answered} onClick={() => { setConfirming(true) }}>
+                {t('allowOnce')}
+              </Button>
+            </>
+          )}
         </div>
       </div>
     </div>

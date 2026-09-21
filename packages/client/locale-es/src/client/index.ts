@@ -29,6 +29,9 @@ export function apply(ctx: ClientContext): void {
       escalation: 'La herramienta {toolName} solicita ejecución privilegiada',
       reject: 'Rechazar',
       allowOnce: 'Permitir una vez',
+      cancel: 'Cancelar',
+      confirm: 'Confirmar',
+      confirmPrompt: 'Revisa los detalles y confirma la aprobación.',
     }),
     'locale-es: approval',
   )

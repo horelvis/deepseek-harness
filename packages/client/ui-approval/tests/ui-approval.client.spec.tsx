@@ -330,6 +330,9 @@ function panelProps(
     escalation: `Tool ${pending.toolName} asks`,
     reject: 'Reject',
     allowOnce: 'Allow once',
+    cancel: 'Cancel',
+    confirm: 'Confirm',
+    confirmPrompt: 'Review the details above, then confirm the approval.',
   }
   return {
     matched: pending,
@@ -386,7 +389,24 @@ describe('ApprovalPanel', () => {
       callId: 'call-1',
     })
     fireEvent.click(screen.getByRole('button', { name: 'Allow once' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }))
 
+    await expect(pending.result).resolves.toBe('allowed-once')
+  })
+
+  it('requires a second confirmation before allowing (two-step)', async () => {
+    const pending = new PendingApproval(id('s1'), { toolName: 'migrator_run_steps' })
+    render(<ApprovalPanel {...panelProps(pending)} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Allow once' }))
+    expect(screen.getByText('Review the details above, then confirm the approval.')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Allow once' })).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.getByRole('button', { name: 'Allow once' })).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Allow once' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }))
     await expect(pending.result).resolves.toBe('allowed-once')
   })
 
@@ -396,9 +416,10 @@ describe('ApprovalPanel', () => {
     render(<ApprovalPanel {...panelProps(pending)} />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Allow once' }))
-    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Allow once' }).disabled).toBe(true)
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }))
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Confirm' }).disabled).toBe(true)
     await waitFor(() => {
-      expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Allow once' }).disabled).toBe(false)
+      expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Confirm' }).disabled).toBe(false)
     })
     pending.abort(new Error('test cleanup'))
     await pending.result.catch(() => {})
