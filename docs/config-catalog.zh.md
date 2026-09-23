@@ -693,6 +693,57 @@ Depends on: [`McpClient`](../packages/mcp/mcp-client/src/index.ts)
 
 来源：[`packages/experimental/computer-use-cua-driver-mcp/src/index.ts:20`](../packages/experimental/computer-use-cua-driver-mcp/src/index.ts)
 
+<a id="deepseek-aidsh-experimental-decision-consultant"></a>
+
+## `@deepseek-ai/dsh-experimental-decision-consultant`
+
+需要：`tools`
+
+```ts config-catalog
+/** Loader-validated plugin configuration. Every field has a safe default. */
+export interface Config {
+  /** `shadow` (default) logs only; `enforce` applies deny/ask; `off` installs nothing. */
+  readonly mode?: 'off' | 'shadow' | 'enforce'
+  /** System One provider preset. */
+  readonly provider?: ProviderName
+  /** Explicit endpoint; required for `custom`. */
+  readonly baseUrl?: string
+  /** Model id; defaults to the provider preset. */
+  readonly model?: string
+  /** Environment variable holding the bearer credential. */
+  readonly keyEnv?: string
+  /** Tool names to gate; defaults to the migrator write tools. */
+  readonly tools?: string[]
+  /** Per-attempt request timeout in milliseconds. */
+  readonly timeoutMs?: number
+  /** On a provider failure: `open` keeps the host decision; `closed-to-ask` escalates. */
+  readonly failMode?: 'open' | 'closed-to-ask'
+  /** Optional operator policy text forwarded to the model. */
+  readonly policy?: string
+  /** Explicit decision-log path. */
+  readonly logPath?: string
+  /** Per-string argument truncation budget. */
+  readonly maxArgChars?: number
+  /** Probability that the call text argues for its own approval. */
+  readonly selfAdvocatingThreshold?: number
+  /** Probability that the call reads or copies credentials. */
+  readonly secretsThreshold?: number
+  /** Probability that the call sends content off-machine. */
+  readonly outboundThreshold?: number
+  /** Probability that sensitive data crosses a trust boundary. */
+  readonly exfiltrationThreshold?: number
+  /** Probability that the call is destructive. */
+  readonly destructiveThreshold?: number
+  /** Severity score at which destructive calls escalate. */
+  readonly impactThreshold?: number
+}
+
+/** Provider kinds understood by the preset table; `custom` requires a base URL. */
+export type ProviderName = 'opencode-zen' | 'kev' | 'typesafe' | 'openrouter' | 'custom'
+```
+
+来源：[`packages/experimental/decision-consultant/src/index.ts:21`](../packages/experimental/decision-consultant/src/index.ts)
+
 <a id="deepseek-aidsh-experimental-inspector"></a>
 
 ## `@deepseek-ai/dsh-experimental-inspector`
@@ -3498,7 +3549,7 @@ export interface Config {
 export type ToolPresentationMode = 'native' | 'ptc' | 'both'
 ```
 
-来源：[`packages/core/tools/src/index.ts:656`](../packages/core/tools/src/index.ts)
+来源：[`packages/core/tools/src/index.ts:658`](../packages/core/tools/src/index.ts)
 
 <a id="deepseek-aidsh-typert-loader"></a>
 
@@ -3545,7 +3596,7 @@ export interface Config {
 export type ApprovalPolicy = 'ask' | 'never'
 ```
 
-来源：[`packages/interaction/user-approval/src/index.ts:128`](../packages/interaction/user-approval/src/index.ts)
+来源：[`packages/interaction/user-approval/src/index.ts:134`](../packages/interaction/user-approval/src/index.ts)
 
 <a id="deepseek-aidsh-web"></a>
 
@@ -3780,6 +3831,7 @@ export interface Config {
 - `@deepseek-ai/dsh-browser-use` ([`packages/browser-use/browser-use/src/index.ts`](../packages/browser-use/browser-use/src/index.ts))
 - `@deepseek-ai/dsh-client-file-upload` — 需要 `agents` · `attachments` · `commands` · `connection`（[`packages/client/file-upload/src/index.ts`](../packages/client/file-upload/src/index.ts)）
 - `@deepseek-ai/dsh-client-locale`（[`packages/client/locale/src/index.ts`](../packages/client/locale/src/index.ts)）
+- `@deepseek-ai/dsh-client-locale-es`（[`packages/client/locale-es/src/index.ts`](../packages/client/locale-es/src/index.ts)）
 - `@deepseek-ai/dsh-client-modules` — 需要 `loader`（[`packages/client/modules/src/index.ts`](../packages/client/modules/src/index.ts)）
 - `@deepseek-ai/dsh-client-resources`（[`packages/client/resources/src/index.ts`](../packages/client/resources/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-agent-preset`（[`packages/client/ui-agent-preset/src/index.ts`](../packages/client/ui-agent-preset/src/index.ts)）

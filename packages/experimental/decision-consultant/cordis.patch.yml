@@ -1,0 +1,3 @@
+- insert:
+    - id: decision-consultant
+      name: '@deepseek-ai/dsh-experimental-decision-consultant'
