@@ -9,7 +9,7 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import type { PreToolDecision, ToolExecution } from '@deepseek-ai/dsh-tools'
-import { buildQuestions, DEFAULT_THRESHOLDS, evaluate, type Thresholds } from './policy.ts'
+import { buildQuestions, DEFAULT_THRESHOLDS, evaluate, scoreSummary, type Thresholds } from './policy.ts'
 import { resolveProvider, type ProviderConfig } from './provider.ts'
 import { buildState } from './redact.ts'
 import { consultSystemOne } from './systemone.ts'
@@ -28,10 +28,13 @@ export const MIGRATOR_WRITE_TOOLS = [
   'migrator_wizard',
 ] as const
 
+/** One consultation call over a state and its questions. */
+export type Consult = (state: GateState, questions: QuestionMap, signal: AbortSignal) => Promise<ConsultResult>
+
 /** Injectable seams for tests. */
 export interface GateDeps {
   /** Provider call; defaults to {@link consultSystemOne}. */
-  readonly consult?: (state: GateState, questions: QuestionMap, signal: AbortSignal) => Promise<ConsultResult>
+  readonly consult?: Consult
   /** Decision sink; defaults to {@link appendDecision}. */
   readonly log?: (logPath: string, record: Record<string, unknown>) => Promise<void>
 }
@@ -69,7 +72,7 @@ function resolve(config: Config): Resolved {
     tools: new Set(config.tools ?? [...MIGRATOR_WRITE_TOOLS]),
     provider,
     thresholds,
-    timeoutMs: config.timeoutMs ?? 3000,
+    timeoutMs: config.timeoutMs ?? 8000,
     failMode: config.failMode ?? 'open',
     ...(config.policy === undefined ? {} : { policy: config.policy }),
     logPath: resolveLogPath(config.logPath === undefined ? {} : { logPath: config.logPath }),
@@ -154,53 +157,87 @@ function harden(downstream: PreToolDecision, outcome: Outcome, resolved: Resolve
     }
     return downstream
   }
+  const scores = scoreSummary(outcome.answers)
+  const finding = `Jev/Kev: ${outcome.hardening.reason}${scores ? ` · ${scores}` : ''}`
   if (outcome.hardening.kind === 'deny') {
-    return { kind: 'deny', reason: `Decision consultant: ${outcome.hardening.reason}` }
+    return { kind: 'deny', reason: `Decision consultant: ${outcome.hardening.reason}${scores ? ` (${scores})` : ''}` }
+  }
+  // The host already asks: KEEP its reason/title/details/body (what is being approved) and ADD the
+  // consultant's finding. Replacing it would leave the human approving blind.
+  if (downstream.kind === 'ask') {
+    return { ...downstream, details: [...(downstream.details ?? []), finding] }
   }
   return {
     kind: 'ask',
     reason: `Decision consultant: ${outcome.hardening.reason}`,
     title: 'Revisar con Jev/Kev',
-    details: [outcome.hardening.reason],
+    details: [finding],
   }
+}
+
+/** Settings namespace this plugin owns and reads live. */
+export const DECISION_CONSULTANT_NAMESPACE = 'decision-consultant'
+
+/** Live-config handle so the settings scope can drive the gate without a reload. */
+export interface GateHandle {
+  /**
+   * Replace the live config source (the settings scope); the composition entry
+   * remains the fallback. An unusable value keeps the last good resolution.
+   * @param current - thunk returning the currently authoritative config.
+   */
+  setSource(current: () => Config): void
 }
 
 /**
  * Install the prepended consultation gate.
  * @param ctx - Host context carrying the tools registry.
- * @param config - validated plugin configuration.
+ * @param config - validated composition-entry configuration (fallback source).
  * @param deps - injectable provider and log seams (tests).
+ * @returns the live-config handle the settings scope binds.
  */
-export function installGate(ctx: Context, config: Config = {}, deps: GateDeps = {}): void {
-  const resolved = resolve(config)
-  if (resolved.mode === 'off') return
+export function installGate(ctx: Context, config: Config = {}, deps: GateDeps = {}): GateHandle {
+  let resolved = resolve(config)
   const log = deps.log ?? appendDecision
-  const consult = deps.consult ?? ((state, questions, signal) => consultSystemOne(state, questions, {
-    baseUrl: resolved.provider.baseUrl,
-    model: resolved.provider.model,
-    ...(resolved.provider.apiKey === undefined ? {} : { apiKey: resolved.provider.apiKey }),
-    timeoutMs: resolved.timeoutMs,
-  }, signal))
+  const injected = deps.consult
+  const consultFor = (current: Resolved): Consult =>
+    injected ?? ((state, questions, signal) => consultSystemOne(state, questions, {
+      baseUrl: current.provider.baseUrl,
+      model: current.provider.model,
+      ...(current.provider.apiKey === undefined ? {} : { apiKey: current.provider.apiKey }),
+      timeoutMs: current.timeoutMs,
+    }, signal))
 
   ctx.on('tools/pre-execute', async (exec, next): Promise<PreToolDecision> => {
     const downstream = await next()
-    if (!resolved.tools.has(exec.name)) return downstream
+    const current = resolved
+    if (current.mode === 'off' || !current.tools.has(exec.name)) return downstream
     const state = buildState(
       {
         name: exec.name,
         arguments: exec.arguments,
-        ...(resolved.policy === undefined ? {} : { policy: resolved.policy }),
+        ...(current.policy === undefined ? {} : { policy: current.policy }),
       },
-      { maxArgChars: resolved.maxArgChars },
+      { maxArgChars: current.maxArgChars },
     )
-    const questions = buildQuestions(resolved.policy)
-    if (resolved.mode === 'shadow') {
-      void run(consult, resolved.thresholds, state, questions, exec.signal)
-        .then(outcome => emit(log, resolved.logPath, record(resolved, exec, downstream, outcome)))
+    const questions = buildQuestions(current.policy)
+    const consult = consultFor(current)
+    if (current.mode === 'shadow') {
+      void run(consult, current.thresholds, state, questions, exec.signal)
+        .then(outcome => emit(log, current.logPath, record(current, exec, downstream, outcome)))
       return downstream
     }
-    const outcome = await run(consult, resolved.thresholds, state, questions, exec.signal)
-    await emit(log, resolved.logPath, record(resolved, exec, downstream, outcome))
-    return harden(downstream, outcome, resolved)
+    const outcome = await run(consult, current.thresholds, state, questions, exec.signal)
+    await emit(log, current.logPath, record(current, exec, downstream, outcome))
+    return harden(downstream, outcome, current)
   }, { prepend: true })
+
+  return {
+    setSource: (source) => {
+      try {
+        resolved = resolve(source())
+      } catch {
+        // An unusable live value keeps the last good resolution (settings semantics).
+      }
+    },
+  }
 }

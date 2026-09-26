@@ -291,17 +291,42 @@ describe('decision log', () => {
   })
 })
 
+interface SettingsCapture {
+  readonly ns: string
+  readonly entry: Config
+  readonly hooks: {
+    readonly setSource: (current: () => Config) => void
+    readonly onChange: () => void
+  }
+}
+
 interface Harness {
   readonly ctx: Context
   readonly handler: () => (exec: ToolExecution, next: () => Promise<PreToolDecision>) => Promise<PreToolDecision>
+  readonly settings: () => SettingsCapture | undefined
 }
 
 function harness(): Harness {
   let captured: unknown
-  const ctx = { on: (_event: string, handler: unknown) => { captured = handler; return () => {} } }
+  let settings: SettingsCapture | undefined
+  const settingsService = {
+    installSection: (_owner: unknown, ns: string, _schema: unknown, entry: Config, hooks: SettingsCapture['hooks']) => {
+      settings = { ns, entry, hooks }
+      hooks.setSource(() => entry)
+      hooks.onChange()
+    },
+  }
+  const ctx = {
+    on: (_event: string, handler: unknown) => { captured = handler; return () => {} },
+    inject: (_deps: readonly string[], callback: (scoped: { settings: typeof settingsService }) => void) => {
+      callback({ settings: settingsService })
+      return () => {}
+    },
+  }
   return {
     ctx: ctx as unknown as Context,
     handler: () => captured as (exec: ToolExecution, next: () => Promise<PreToolDecision>) => Promise<PreToolDecision>,
+    settings: () => settings,
   }
 }
 
@@ -331,17 +356,29 @@ describe('plugin surface', () => {
     expect(Config({})).toMatchObject({ mode: 'shadow', provider: 'opencode-zen', tools: [...MIGRATOR_WRITE_TOOLS] })
   })
 
-  it('installs nothing when disabled', () => {
-    let installed = false
-    const ctx = { on: () => { installed = true; return () => {} } } as unknown as Context
-    apply(ctx, { mode: 'off' })
-    expect(installed).toBe(false)
+  it('registers its settings namespace with the composition entry as base', () => {
+    const { ctx, settings, handler } = harness()
+    apply(ctx, {})
+    expect(settings()?.ns).toBe('decision-consultant')
+    expect(settings()?.entry).toEqual({})
+    expect(handler()).toBeTypeOf('function')
   })
 
-  it('defaults to shadow mode when omitted', () => {
+  it('is inert when disabled but still registers the listener', async () => {
     const { ctx, handler } = harness()
-    apply(ctx, {})
-    expect(handler()).toBeTypeOf('function')
+    apply(ctx, { mode: 'off' })
+    expect(await handler()(exec('migrator_run_steps'), allow)).toEqual({ kind: 'allow' })
+  })
+
+  it('applies a live config source and keeps the last good value on a bad one', async () => {
+    const { ctx, handler } = harness()
+    const consult = vi.fn(consultAnswers(answers({ exfiltration: { noul: 0.99 } })))
+    const handle = installGate(ctx, { mode: 'shadow', tools: ['migrator_run_steps'] }, { consult, log: () => Promise.resolve() })
+    expect(await handler()(exec('migrator_run_steps'), allow)).toEqual({ kind: 'allow' })
+    handle.setSource(() => ({ mode: 'enforce', tools: ['migrator_run_steps'] }))
+    expect((await handler()(exec('migrator_run_steps'), allow)).kind).toBe('deny')
+    handle.setSource(() => ({ mode: 'enforce', provider: 'custom' }))
+    expect((await handler()(exec('migrator_run_steps'), allow)).kind).toBe('deny')
   })
 })
 
@@ -418,6 +455,17 @@ describe('consultation gate', () => {
     const result = await handler()(exec('migrator_run_steps'), allow)
     expect(result.kind).toBe('ask')
     expect((result as { details: readonly string[] }).details[0]).toMatch(/inyeccion/)
+  })
+
+  it('enforce keeps the host ask (what is approved) and appends the consultant finding with scores', async () => {
+    const { ctx, handler } = harness()
+    installGate(ctx, { mode: 'enforce', tools: ['migrator_run_steps'] },
+      { consult: consultAnswers(answers({ destructive: { noul: 0.3 }, verdict: { choice: 'escalate' } })), log: () => Promise.resolve() })
+    const hostAsk = async () => ({ kind: 'ask' as const, reason: 'Ejecuta 6 pasos en el DESTINO', title: 'ENSAYO: hop 7.4', details: ['provision-hop', 'schema-upgrade'], body: 'El ORIGEN no se modifica.' })
+    const result = await handler()(exec('migrator_run_steps'), hostAsk) as { kind: string; reason: string; title: string; details: readonly string[]; body: string }
+    expect(result).toMatchObject({ kind: 'ask', reason: 'Ejecuta 6 pasos en el DESTINO', title: 'ENSAYO: hop 7.4', body: 'El ORIGEN no se modifica.' })
+    expect(result.details.slice(0, 2)).toEqual(['provision-hop', 'schema-upgrade'])
+    expect(result.details[2]).toMatch(/^Jev\/Kev: el modelo recomienda "escalate" · .*destructive=0\.30.*verdict=escalate/)
   })
 
   it('fails open by default and can fail closed to ask', async () => {

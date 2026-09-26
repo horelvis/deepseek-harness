@@ -101,6 +101,25 @@ function scoreOf(answers: AnswerMap, id: string): number | undefined {
 const fmt = (value: number): string => value.toFixed(2)
 
 /**
+ * One-line summary of the consultant's scores, so a human sees WHY it hardened (not just the verdict).
+ * @param answers - typed answers returned by the provider.
+ * @returns e.g. `destructive=0.62 impact=3.0 reads_secrets=0.05 ... verdict=escalate`, or '' when empty.
+ */
+export function scoreSummary(answers: AnswerMap | undefined): string {
+  if (answers === undefined) return ''
+  const parts: string[] = []
+  for (const id of ['destructive', 'reads_secrets', 'sends_outbound', 'exfiltration', 'self_advocating']) {
+    const value = noulOf(answers, id)
+    if (value !== undefined) parts.push(`${id}=${fmt(value)}`)
+  }
+  const impact = scoreOf(answers, 'impact')
+  if (impact !== undefined) parts.push(`impact=${impact.toFixed(1)}`)
+  const verdict = answers.verdict
+  if (verdict !== undefined && verdict.type === 'choice') parts.push(`verdict=${verdict.choice}`)
+  return parts.join(' ')
+}
+
+/**
  * Apply the ordered deterministic rules to one answer set.
  * @param answers - typed answers returned by the provider.
  * @param thresholds - probability and score thresholds.
