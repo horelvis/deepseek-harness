@@ -742,7 +742,7 @@ export interface Config {
 export type ProviderName = 'opencode-zen' | 'kev' | 'typesafe' | 'openrouter' | 'custom'
 ```
 
-来源：[`packages/experimental/decision-consultant/src/index.ts:21`](../packages/experimental/decision-consultant/src/index.ts)
+来源：[`packages/experimental/decision-consultant/src/index.ts:23`](../packages/experimental/decision-consultant/src/index.ts)
 
 <a id="deepseek-aidsh-experimental-inspector"></a>
 

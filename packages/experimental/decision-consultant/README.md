@@ -53,7 +53,7 @@ The plugin reads a validated configuration object. Every field has a safe defaul
 | `failMode` | `open` | `open` keeps the host decision, `closed-to-ask` escalates on failure |
 | `policy` | none | optional operator policy forwarded to the model |
 | `logPath` | `$DSH_HOME/logs/decision-consultant.log` | JSONL decision log |
-| `timeoutMs` | `3000` | per-attempt request timeout |
+| `timeoutMs` | `8000` | per-attempt request timeout |
 
 ### What you get
 

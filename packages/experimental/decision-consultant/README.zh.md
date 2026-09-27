@@ -53,7 +53,7 @@ pnpm dsh plugin --profile web remove @deepseek-ai/dsh-experimental-decision-cons
 | `failMode` | `open` | `open` 保留宿主决定，`closed-to-ask` 在失败时升级 |
 | `policy` | 无 | 可选的运维策略文本，转发给模型 |
 | `logPath` | `$DSH_HOME/logs/decision-consultant.log` | JSONL 决策日志 |
-| `timeoutMs` | `3000` | 单次请求超时 |
+| `timeoutMs` | `8000` | 单次请求超时 |
 
 ### 你会得到什么
 

@@ -7,8 +7,10 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
+// Type-only: pulls the settings service's Context merge (ctx.settings).
+import type {} from '@deepseek-ai/dsh-settings'
 import z from '@deepseek-ai/schemastery'
-import { installGate } from './gate.ts'
+import { DECISION_CONSULTANT_NAMESPACE, installGate } from './gate.ts'
 import type { ProviderName } from './provider.ts'
 
 /** Cordis plugin name used by loader diagnostics. */
@@ -77,7 +79,7 @@ export const Config: z<Config> = z.object({
     'migrator_copy_content',
     'migrator_wizard',
   ]),
-  timeoutMs: z.number().default(3000),
+  timeoutMs: z.number().default(8000),
   failMode: z.union([z.const('open'), z.const('closed-to-ask')]).default('open'),
   policy: z.string(),
   logPath: z.string(),
@@ -91,9 +93,17 @@ export const Config: z<Config> = z.object({
 })
 
 /**
- * @param ctx - Host context carrying the tools registry.
- * @param config - validated plugin configuration.
+ * @param ctx - Host context carrying the tools registry (and, when present, settings).
+ * @param config - validated plugin configuration, used as the settings base layer.
  */
 export function apply(ctx: Context, config: Config = {}): void {
-  installGate(ctx, config)
+  const handle = installGate(ctx, config)
+  // The mode and thresholds are plugin settings, not code: when a settings
+  // provider is mounted, its user layer drives the gate live.
+  ctx.inject(['settings'], (settingsCtx) => {
+    settingsCtx.settings.installSection(ctx, DECISION_CONSULTANT_NAMESPACE, Config, config, {
+      setSource: (current) => { handle.setSource(current) },
+      onChange: () => {},
+    })
+  })
 }
